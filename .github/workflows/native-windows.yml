@@ -5,6 +5,8 @@ on:
     paths:
       - 'native/windows/**'
       - '.github/workflows/native-windows.yml'
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
