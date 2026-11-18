@@ -57,6 +57,7 @@ jobs:
           "Making transport commit: $upstream" | Set-Content -Encoding utf8 BUILD-INFO.txt
           "Windows adapter commit: $env:GITHUB_SHA" | Add-Content -Encoding utf8 BUILD-INFO.txt
       - uses: actions/upload-artifact@v4
+        if: steps.native_build.outcome == 'success'
         with:
           name: Making-Native-Windows-x64
           path: |
