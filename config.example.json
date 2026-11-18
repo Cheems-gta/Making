@@ -1,0 +1,7 @@
+{
+  "listen_socks": "127.0.0.1:10808",
+  "listen_http": "127.0.0.1:10809",
+  "username": "making",
+  "password": "CHANGE-THIS-TO-A-LONG-LOCAL-PASSWORD",
+  "upstream": "socks5://USERNAME:PASSWORD@127.0.0.1:10810"
+}
