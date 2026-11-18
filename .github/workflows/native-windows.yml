@@ -1,0 +1,61 @@
+name: Build Making Native Windows HY2 AnyTLS
+on:
+  push:
+    branches: [doreena-pc-native-v07]
+    paths:
+      - 'native/windows/**'
+      - '.github/workflows/native-windows.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-core:
+    runs-on: windows-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout original Making transport module
+        uses: actions/checkout@v4
+        with:
+          repository: Cheems-gta/Cheems-Core
+          ref: making-latest
+          path: upstream
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: upstream/native/quic/go.mod
+          cache: false
+      - name: Install native Windows entrypoint
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force upstream/native/quic/cmd/making-native | Out-Null
+          Copy-Item native/windows/main.go upstream/native/quic/cmd/making-native/main.go
+          go version
+      - name: Compile Making native EXE
+        working-directory: upstream/native/quic
+        shell: pwsh
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: '0'
+        run: |
+          go build -trimpath -o "$env:GITHUB_WORKSPACE/making-native.exe" ./cmd/making-native
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Smoke test Windows executable
+        shell: pwsh
+        run: |
+          & ./making-native.exe --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $sha=(Get-FileHash -Algorithm SHA256 ./making-native.exe).Hash.ToLower()
+          "$sha  making-native.exe" | Set-Content -Encoding ascii SHA256SUMS.txt
+          $upstream=(git -C upstream rev-parse HEAD).Trim()
+          "Making transport commit: $upstream" | Set-Content -Encoding utf8 BUILD-INFO.txt
+          "Windows adapter commit: $env:GITHUB_SHA" | Add-Content -Encoding utf8 BUILD-INFO.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Making-Native-Windows-x64
+          path: |
+            making-native.exe
+            SHA256SUMS.txt
+            BUILD-INFO.txt
+          if-no-files-found: error
