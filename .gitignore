@@ -1,0 +1,12 @@
+config.json
+*.private.json
+*.secret.json
+*.pem
+*.key
+.env
+*.exe
+*.dll
+*.so
+*.test
+/dist/
+/build/
