@@ -59,7 +59,8 @@ func run() error {
  var c config
  if err=json.Unmarshal(raw,&c);err!=nil{return errors.New("invalid configuration")}
  if c.Host==""||c.Port<1||c.Port>65535||c.LocalPort<1||c.LocalPort>65535||len(c.LocalSecret)<24||len(c.LocalSecret)>255||c.Password=="" {return errors.New("invalid endpoint or authentication")}
- if c.CA!="" && !strings.HasPrefix(strings.TrimSpace(c.CA),"-----BEGIN CERTIFICATE-----") {return errors.New("CA must be inline PEM")}
+ // Compatibility mode: TLS encryption remains enabled, but server certificates are not verified.
+ // This removes hostname/chain/pin enforcement; do not use on untrusted networks.
  ctx,cancel:=context.WithCancel(context.Background())
  defer cancel()
  var server *core.SOCKS5Server
@@ -68,7 +69,7 @@ func run() error {
  switch strings.ToLower(c.Type) {
  case "hysteria2","hy2":
   dialCtx,stop:=context.WithTimeout(ctx,15*time.Second)
-  session,e:=core.DialHysteria2(dialCtx,core.Hysteria2Config{Address:addr,ServerName:c.SNI,Password:c.Password,Timeout:15*time.Second,TrustedCAPEM:c.CA,CertificateSHA256:c.Pin,Network:desktopNetwork{}})
+  session,e:=core.DialHysteria2(dialCtx,core.Hysteria2Config{Address:addr,ServerName:c.SNI,Password:c.Password,Timeout:15*time.Second,AllowUnverifiedTLS:true,Network:desktopNetwork{}})
   stop()
   if e!=nil{return fmt.Errorf("HY2 handshake: %w",e)}
   closeTransport=func(){_ = session.Close()}
@@ -77,7 +78,7 @@ func run() error {
  case "anytls":
   var alpn []string
   if c.ALPN!=""{alpn=strings.Split(c.ALPN,",")}
-  client,e:=core.NewAnyTLSClient(ctx,core.AnyTLSConfig{Address:addr,ServerName:c.SNI,Password:c.Password,TrustedCAPEM:c.CA,CertificateSHA256:c.Pin,Fingerprint:c.Fingerprint,ALPN:alpn,Network:desktopNetwork{}})
+  client,e:=core.NewAnyTLSClient(ctx,core.AnyTLSConfig{Address:addr,ServerName:c.SNI,Password:c.Password,AllowUnverifiedTLS:true,Fingerprint:c.Fingerprint,ALPN:alpn,Network:desktopNetwork{}})
   if e!=nil{return fmt.Errorf("AnyTLS setup: %w",e)}
   closeTransport=func(){_ = client.Close()}
   server,err=core.ListenSOCKS5WithDialer(fmt.Sprintf("127.0.0.1:%d",c.LocalPort),c.LocalSecret,client.OpenTCP)
