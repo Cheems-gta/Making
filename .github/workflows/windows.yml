@@ -1,0 +1,42 @@
+name: Build Making Standalone Windows
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Run tests
+        shell: pwsh
+        run: |
+          go test ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go vet ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Compile Windows x64 executable
+        shell: pwsh
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: '0'
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          go build -trimpath -o dist/Making-Standalone-Windows-x64.exe ./cmd/making
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & ./dist/Making-Standalone-Windows-x64.exe --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $hash = (Get-FileHash -Algorithm SHA256 dist/Making-Standalone-Windows-x64.exe).Hash.ToLower()
+          "$hash  Making-Standalone-Windows-x64.exe" | Set-Content -Encoding ascii dist/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Making-Standalone-Windows-x64
+          path: dist/*
+          if-no-files-found: error
